@@ -1,0 +1,101 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>3D Earth</title>
+
+<script id="vertex-shader" type="x-shader/x-vertex">
+attribute vec3 aPosition;
+attribute vec3 aNormal;
+attribute vec4 aColor;
+
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+
+varying vec3 fNormal;
+varying vec4 fColor;
+
+void main()
+{
+    fNormal = mat3(modelViewMatrix) * aNormal;
+    fColor = aColor;
+
+    gl_Position = projectionMatrix *
+                  modelViewMatrix *
+                  vec4(aPosition, 1.0);
+}
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+precision mediump float;
+
+varying vec3 fNormal;
+varying vec4 fColor;
+
+uniform vec4 ambientProduct;
+uniform vec4 diffuseProduct;
+uniform vec4 specularProduct;
+uniform vec4 lightPosition;
+uniform float shininess;
+
+void main()
+{
+    vec3 N = normalize(fNormal);
+    vec3 L = normalize(lightPosition.xyz);
+    vec3 E = vec3(0.0, 0.0, 1.0);
+    vec3 H = normalize(L + E);
+
+    vec4 ambient = ambientProduct;
+
+    float Kd = max(dot(L, N), 0.0);
+    vec4 diffuse = Kd * diffuseProduct;
+
+    float Ks = pow(max(dot(N, H), 0.0), shininess);
+    vec4 specular = Ks * specularProduct;
+
+    if (dot(L, N) < 0.0)
+        specular = vec4(0.0, 0.0, 0.0, 1.0);
+
+    vec4 colorOut = (ambient + diffuse + specular) * fColor;
+    colorOut.a = 1.0;
+
+    gl_FragColor = colorOut;
+}
+</script>
+
+<script type="text/javascript" src="webgl-utils.js"></script>
+<script type="text/javascript" src="initShaders.js"></script>
+<script type="text/javascript" src="MV.js"></script>
+<script type="text/javascript" src="data/dem.js"></script>
+<script type="text/javascript" src="terrain.js"></script>
+<script type="text/javascript" src="app.js"></script>
+
+</head>
+
+<body>
+<canvas id="gl-canvas" width="512" height="512">
+Oops ... your browser doesn't support the HTML5 canvas element
+</canvas>
+
+<br>
+
+<button id="rotBtn">자전 정지/재생</button>
+<button id="lightBtn">조명 이동 정지/재생</button>
+
+<div>
+고도 배율:
+1 <input id="scaleSlider" type="range"
+min="1" max="60" step="1" value="24"> 60
+<span id="scaleVal">24</span>
+</div>
+
+<div>
+조명 각도:
+-180 <input id="lightSlider" type="range"
+min="-180" max="180" step="1" value="-35"> 180
+<span id="lightVal">-35</span>°
+</div>
+
+</body>
+</html>
