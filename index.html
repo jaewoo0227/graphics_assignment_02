@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>3D Earth</title>
+
+<!-- 정점 셰이더 -->
+<script id="vertex-shader" type="x-shader/x-vertex">
+attribute vec3 vPosition;                      // 정점 좌표
+attribute vec3 vNormal;                        // 법선 벡터
+attribute vec4 vColor;                         // 정점 색상
+
+uniform mat4 modelViewMatrix;                  // 모델 및 카메라 변환 행렬
+uniform mat4 projectionMatrix;                 // 원근 투영 행렬
+
+varying vec3 fNormal;                          // 프래그먼트 셰이더로 전달할 법선 벡터
+varying vec4 fColor;                           // 프래그먼트 셰이더로 전달할 정점 색상
+
+void main()
+{
+    fNormal = mat3(modelViewMatrix) * vNormal; // 법선 벡터를 카메라 좌표계로 변환
+    fColor = vColor;                           // 정점 색상을 프래그먼트 셰이더로 전달
+
+    // 정점 좌표에 모델 뷰 행렬과 투영 행렬을 적용하여 최종 화면 좌표 계산
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(vPosition, 1.0);
+}
+</script>
+
+<!-- 프래그먼트 셰이더 -->
+<script id="fragment-shader" type="x-shader/x-fragment">
+precision mediump float;
+
+varying vec3 fNormal;                          // 전달 받은 법선 벡터
+varying vec4 fColor;                           // 전달 받은 색상
+
+uniform vec4 ambientProduct;                   // 주변광
+uniform vec4 diffuseProduct;                   // 확산광
+uniform vec4 specularProduct;                  // 반사광
+uniform vec4 lightPosition;                    // 광원 방향, 위치 정보
+uniform float shininess;                       // 반짝임 계수
+
+void main()
+{
+    vec3 N = normalize(fNormal);               // 벡터 정규화
+    vec3 L = normalize(lightPosition.xyz);
+    vec3 E = vec3(0.0, 0.0, 1.0);              // 카메라 좌표계에서 시점 방향 설정
+    vec3 H = normalize(L + E);                 // 광원 방향과 시점 방향의 중간 벡터
+
+    vec4 ambient = ambientProduct;             // 주변광 계산
+    float Kd = max(dot(L, N), 0.0);            // 확산광 계수 계산
+    vec4 diffuse = Kd * diffuseProduct;        // 확산광 계산
+    float Ks = pow(max(dot(N, H), 0.0), shininess); // 반사 계수 계산
+    vec4 specular = Ks * specularProduct;      // 반사광 계산
+
+    if (dot(L, N) < 0.0)                       // 광원이 표면의 반대쪽에 있는 경우
+        specular = vec4(0.0, 0.0, 0.0, 1.0);   // 반사광 제거
+
+    // 주변광, 난반사광, 정반사광을 합산하고 정점 색상을 곱하여 최종 색상 계산
+    vec4 colorOut = (ambient + diffuse + specular) * fColor;
+
+    colorOut.a = 1.0;                          // 최종 색상의 투명도를 불투명하게 설정
+
+    gl_FragColor = colorOut;                   // 최종 픽셀 색상 출력
+}
+</script>
+<script src="webgl-utils.js"></script>
+<script src="initShaders.js"></script>
+<script src="MV.js"></script>
+<script src="dem.js"></script>
+<script src="terrain.js"></script>
+<script src="app.js"></script>
+
+</head>
+
+<body>
+<canvas id="gl-canvas" width="512" height="512">
+Oops ... your browser doesn't support the HTML5 canvas element
+</canvas>
+
+<br>
+<!-- 버튼 -->
+<button id="rotBtn">자전 정지/재생</button>
+<button id="lightBtn">조명 이동 정지/재생</button>
+
+<!-- 조명의 회전 각도를 조절하는 슬라이더 -->
+<div>
+조명 각도: -180
+<input id="lightSlider" type="range"
+min="-180" max="180" step="1" value="0">
+180
+<span id="lightVal">0</span>°
+</div>
+</body>
+</html>
